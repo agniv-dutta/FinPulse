@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Finpulse | Smart Stock Intelligence</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #111312;
+            --bg-surf: #181a19;
+            --bg-card: #1e201f;
+            --bg-card2: #232523;
+            --border-d: #212321;
+            --t1: #edecea;
+            --t2: #7a7d7b;
+            --t3: #3e403f;
+            --green: #7bff6a;
+            --red: #ff5c5c;
+            --amber: #f5a623;
+            --blue: #5ab4ff;
+            --font-main: 'Sora', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: var(--font-main);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .tabular { font-variant-numeric: tabular-nums; }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--t1);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* SVG Noise Overlay */
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 9999;
+            opacity: 0.04;
+            background: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+        }
+
+        /* 1. Icon Bar (68px) */
+        .icon-bar {
+            width: 68px;
+            background-color: var(--bg-surf);
+            border-right: 1px solid var(--border-d);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 0;
+            gap: 24px;
+        }
+
+        .logo-sq {
+            width: 36px;
+            height: 36px;
+            background: var(--green);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .nav-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--t2);
+        }
+
+        .nav-icon:hover { background: var(--bg-card); color: var(--t1); }
+        .nav-icon.active { background: var(--bg-card2); color: var(--green); }
+        .nav-icon.bottom { margin-top: auto; }
+
+        /* 2. Main Content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            padding: 24px 32px;
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .greeting h1 { font-size: 21px; font-weight: 600; }
+        .greeting p { font-size: 13px; color: var(--t2); margin-top: 4px; }
+
+        .search-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border-d);
+            border-radius: 12px;
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 300px;
+        }
+
+        .search-box input {
+            background: transparent;
+            border: none;
+            color: var(--t1);
+            font-size: 13px;
+            outline: none;
+            width: 100%;
+        }
+
+        /* Ticker Strip */
+        .ticker-strip {
+            display: flex;
+            gap: 12px;
+            overflow-x: auto;
+            padding-bottom: 16px;
+            margin-bottom: 24px;
+            scrollbar-width: none;
+        }
+        .ticker-strip::-webkit-scrollbar { display: none; }
+
+        .ticker-chip {
+            background: var(--bg-surf);
+            border: 1px solid var(--border-d);
+            border-radius: 12px;
+            padding: 12px 16px;
+            min-width: 180px;
+            flex-shrink: 0;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .ticker-chip:hover { border-color: var(--t3); }
+        .ticker-chip.active {
+            border-color: var(--green);
+            background: rgba(123, 255, 106, 0.05);
+        }
+
+        .chip-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+        .chip-symbol { font-size: 11px; font-weight: 700; color: var(--t1); }
+        .chip-name { font-size: 10px; color: var(--t2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 110px; }
+        .chip-price { font-size: 17px; font-weight: 700; }
+        .chip-delta { font-size: 10px; font-weight: 600; margin-top: 2px; }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid var(--border-d);
+        }
+
+        .stat-label { font-size: 11px; color: var(--t2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+        .stat-value { font-size: 20px; font-weight: 700; }
+        .stat-value.green { color: var(--green); }
+        .stat-value.red { color: var(--red); }
+        .stat-value.amber { color: var(--amber); }
+
+        /* Chart Area */
+        .chart-box {
+            background: var(--bg-card);
+            border-radius: 15px;
+            padding: 24px;
+            border: 1px solid var(--border-d);
+            flex: 1;
+            min-height: 400px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .chart-title { font-size: 14px; font-weight: 600; color: var(--t2); }
+        
+        .filter-group { display: flex; gap: 8px; }
+        .btn-filter {
+            background: transparent;
+            border: 1px solid var(--border-d);
+            color: var(--t2);
+            font-size: 11px;
+            padding: 6px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-filter.active {
+            border-color: var(--green);
+            color: var(--green);
+            background: rgba(123, 255, 106, 0.08);
+        }
+
+        /* Compare Grid */
+        .compare-box {
+            background: var(--bg-card);
+            border-radius: 15px;
+            padding: 24px;
+            border: 1px solid var(--border-d);
+            margin-top: 24px;
+        }
+
+        .compare-inputs { display: flex; gap: 12px; align-items: center; margin-bottom: 20px; }
+        select {
+            background: var(--bg-card2);
+            border: 1px solid var(--border-d);
+            color: var(--t1);
+            padding: 10px;
+            border-radius: 10px;
+            font-size: 12px;
+            flex: 1;
+        }
+        .btn-run {
+            background: var(--green);
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        /* 3. Right Panel (286px) */
+        .right-panel {
+            width: 286px;
+            background: var(--bg-surf);
+            border-left: 1px solid var(--border-d);
+            display: flex;
+            flex-direction: column;
+            padding: 24px;
+            overflow-y: auto;
+        }
+
+        .active-header { margin-bottom: 32px; }
+        .active-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .active-name { font-size: 15px; font-weight: 600; }
+        .active-symbol { font-size: 11px; color: var(--t2); }
+        .active-price { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+        .delta-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 700;
+        }
+        .delta-badge.up { background: rgba(123, 255, 106, 0.1); color: var(--green); }
+        .delta-badge.down { background: rgba(255, 92, 92, 0.1); color: var(--red); }
+
+        .panel-section { margin-bottom: 32px; }
+        .section-h { font-size: 11px; color: #cbd5e1; text-transform: uppercase; letter-spacing: 1x; margin-bottom: 16px; }
+
+        .performer-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            border: 1px solid transparent;
+        }
+        .perf-info { display: flex; flex-direction: column; }
+        .perf-sym { font-size: 12px; font-weight: 600; }
+        .perf-name { font-size: 10px; color: var(--t2); }
+        .perf-val { font-size: 11px; font-weight: 700; }
+        .perf-val.up { color: var(--green); }
+        .perf-val.down { color: var(--red); }
+
+        /* Prediction Grid */
+        .pred-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+        }
+        .pred-cell {
+            background: var(--bg-card);
+            border: 1px solid var(--border-d);
+            border-radius: 6px;
+            padding: 8px 4px;
+            text-align: center;
+        }
+        .pred-day { font-size: 9px; color: var(--t2); margin-bottom: 4px; }
+        .pred-price { font-size: 10px; font-weight: 700; color: var(--amber); }
+
+        /* Volatility Gauge */
+        .v-gauge { margin-top: 16px; }
+        .v-val { font-size: 19px; font-weight: 700; margin-bottom: 12px; }
+        .v-track {
+            height: 6px;
+            background: var(--bg-card2);
+            border-radius: 3px;
+            overflow: hidden;
+            position: relative;
+        }
+        .v-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #3ecf30, #7bff6a, #f5a623);
+            border-radius: 3px;
+            transition: width 0.4s ease;
+        }
+        .v-labels { display: flex; justify-content: space-between; margin-top: 8px; font-size: 9px; color: var(--t3); }
+
+        /* Utility */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border-d); border-radius: 10px; }
+    </style>
+</head>
+<body>
+    <!-- Icon Bar -->
+    <nav class="icon-bar">
+        <div class="logo-sq">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+        </div>
+        <div class="nav-icon active" title="Dashboard">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+        </div>
+        <div class="nav-icon" title="Markets">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg>
+        </div>
+        <div class="nav-icon" title="Analytics">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+        </div>
+        <div class="nav-icon bottom" title="Settings">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="top-bar">
+            <div class="greeting">
+                <h1 id="greetingMsg">Good Morning, Finpulse 👋</h1>
+                <p id="currentDate">Monday, 30 March 2026</p>
+            </div>
+            <div class="search-box">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <input type="text" placeholder="Search markets...">
+            </div>
+        </div>
+
+        <div class="ticker-strip" id="tickerStrip">
+            <!-- Ticker Chips loaded via JS -->
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">52W High</div>
+                <div class="stat-value green tabular" id="high52w">₹0.00</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">52W Low</div>
+                <div class="stat-value red tabular" id="low52w">₹0.00</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Avg Close</div>
+                <div class="stat-value tabular" id="avgClose">₹0.00</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Volatility</div>
+                <div class="stat-value amber tabular" id="volValue">0.000</div>
+            </div>
+        </div>
+
+        <div class="chart-box">
+            <div class="chart-header">
+                <div class="chart-title" id="chartTitle">Closing Price Trend</div>
+                <div class="filter-group">
+                    <button class="btn-filter active" onclick="filterData(30)">30D</button>
+                    <button class="btn-filter" onclick="filterData(90)">90D</button>
+                    <button class="btn-filter" onclick="filterData(365)">1Y</button>
+                </div>
+            </div>
+            <canvas id="mainChart"></canvas>
+        </div>
+
+        <div class="compare-box">
+            <div class="section-h">⚖️ Compare Performance</div>
+            <div class="compare-inputs">
+                <select id="compare1"></select>
+                <select id="compare2"></select>
+                <button class="btn-run" onclick="compareStocks()">Run ↗</button>
+            </div>
+            <div id="compareResult" style="height: 200px; display:none;">
+                <canvas id="compareChart"></canvas>
+            </div>
+        </div>
+    </main>
+
+    <!-- Right Panel -->
+    <aside class="right-panel">
+        <div class="active-header">
+            <div class="active-meta">
+                <span class="active-name" id="activeName">---</span>
+                <span class="active-symbol" id="activeSymbol">---</span>
+            </div>
+            <div class="active-price tabular" id="activePrice">₹0.00</div>
+            <div class="delta-badge" id="activeDelta">+0.00%</div>
+        </div>
+
+        <div class="panel-section">
+            <div class="section-h">Top Gainers</div>
+            <div id="gainersList"></div>
+        </div>
+
+        <div class="panel-section">
+            <div class="section-h">Top Losers</div>
+            <div id="losersList"></div>
+        </div>
+
+        <div class="panel-section">
+            <div class="section-h">7-Day Prediction</div>
+            <div class="pred-grid" id="predGrid">
+                <!-- 7 Cells (M T W T F S S) -->
+            </div>
+        </div>
+
+        <div class="panel-section">
+            <div class="section-h">Volatility Index</div>
+            <div class="v-gauge">
+                <div class="v-val tabular" id="vIndexVal">0.00</div>
+                <div class="v-track">
+                    <div class="v-bar" id="vBar" style="width: 0%"></div>
+                </div>
+                <div class="v-labels">
+                    <span>LOW</span>
+                    <span>MED</span>
+                    <span>HIGH</span>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <script>
+        let currentSymbol = '';
+        let fullStockData = [];
+        let mainChart = null;
+        let compareChart = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            setGreeting();
+            loadCompanies();
+            loadTopPerformers();
+        });
+
+        function setGreeting() {
+            const hour = new Date().getHours();
+            const msg = hour < 12 ? "Good Morning" : hour < 18 ? "Good Afternoon" : "Good Evening";
+            document.getElementById('greetingMsg').innerText = `${msg}, Finpulse 👋`;
+            
+            const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+            document.getElementById('currentDate').innerText = new Date().toLocaleDateString('en-US', options);
+        }
+
+        async function loadCompanies() {
+            const res = await fetch('/companies');
+            const companies = await res.json();
+            const strip = document.getElementById('tickerStrip');
+            const sel1 = document.getElementById('compare1');
+            const sel2 = document.getElementById('compare2');
+            
+            strip.innerHTML = '';
+            for (const company of companies) {
+                // Fetch latest data for the chip price/delta
+                const dataRes = await fetch(`/data/${company.symbol}`);
+                const data = await dataRes.json();
+                const latest = data[data.length - 1];
+                const prev = data[data.length - 2] || latest;
+                const delta = ((latest.close - prev.close) / prev.close * 100).toFixed(2);
+                const isUp = delta >= 0;
+
+                const chip = document.createElement('div');
+                chip.className = 'ticker-chip';
+                chip.setAttribute('data-symbol', company.symbol);
+                chip.innerHTML = `
+                    <div class="chip-top">
+                        <span class="chip-symbol">${company.symbol}</span>
+                        <span class="chip-name">${company.name}</span>
+                    </div>
+                    <div class="chip-price tabular">₹${latest.close.toLocaleString()}</div>
+                    <div class="chip-delta ${isUp ? 'text-success' : 'text-danger'}" style="color: ${isUp ? 'var(--green)' : 'var(--red)'}">
+                        ${isUp ? '↑' : '↓'} ${Math.abs(delta)}%
+                    </div>
+                `;
+                chip.onclick = () => selectCompany(company, latest, delta);
+                strip.appendChild(chip);
+
+                sel1.add(new Option(company.symbol, company.symbol));
+                sel2.add(new Option(company.symbol, company.symbol));
+            }
+
+            if(companies.length > 0) {
+                // Fetch first company's data to select it
+                const firstRes = await fetch(`/data/${companies[0].symbol}`);
+                const firstData = await firstRes.json();
+                const firstLatest = firstData[firstData.length-1];
+                const firstPrev = firstData[firstData.length-2] || firstLatest;
+                const firstDelta = ((firstLatest.close - firstPrev.close) / firstPrev.close * 100).toFixed(2);
+                selectCompany(companies[0], firstLatest, firstDelta);
+            }
+        }
+
+        async function selectCompany(company, latest, delta) {
+            currentSymbol = company.symbol;
+            
+            // UI Updates
+            document.getElementById('activeName').innerText = company.name;
+            document.getElementById('activeSymbol').innerText = company.symbol;
+            document.getElementById('activePrice').innerText = `₹${latest.close.toLocaleString()}`;
+            
+            const deltaEl = document.getElementById('activeDelta');
+            deltaEl.innerText = `${delta >= 0 ? '+' : ''}${delta}%`;
+            deltaEl.className = `delta-badge ${delta >= 0 ? 'up' : 'down'}`;
+
+            // Highlight chip
+            document.querySelectorAll('.ticker-chip').forEach(c => {
+                c.classList.toggle('active', c.getAttribute('data-symbol') === company.symbol);
+            });
+
+            // Fetch secondary data
+            const dataRes = await fetch(`/data/${company.symbol}`);
+            fullStockData = await dataRes.json();
+            
+            const summaryRes = await fetch(`/summary/${company.symbol}`);
+            const summary = await summaryRes.json();
+            
+            updateStatsAndPanel(summary, fullStockData[fullStockData.length-1]);
+            filterData(30);
+            loadPredictions(company.symbol);
+        }
+
+        function updateStatsAndPanel(summary, latest) {
+            document.getElementById('high52w').innerText = `₹${summary.high_52w.toLocaleString()}`;
+            document.getElementById('low52w').innerText = `₹${summary.low_52w.toLocaleString()}`;
+            document.getElementById('avgClose').innerText = `₹${summary.avg_close.toLocaleString()}`;
+            document.getElementById('volValue').innerText = latest.volatility.toFixed(4);
+            
+            // Volatility Gauge
+            document.getElementById('vIndexVal').innerText = latest.volatility.toFixed(4);
+            const vPercent = Math.min(100, Math.max(0, (latest.volatility / 0.05) * 100)); // Scaled to 0.05 as 'High'
+            document.getElementById('vBar').style.width = `${vPercent}%`;
+        }
+
+        async function filterData(days) {
+            const filtered = fullStockData.slice(-days);
+            const labels = filtered.map(d => d.date);
+            const prices = filtered.map(d => d.close);
+            const ma7 = filtered.map(d => d.ma_7);
+
+            const predRes = await fetch(`/predict/${currentSymbol}`);
+            const predictions = await predRes.json();
+            
+            const predLabels = [labels[labels.length-1], ...predictions.map(p => p.date)];
+            const predPrices = [prices[prices.length-1], ...predictions.map(p => p.prediction)];
+
+            renderMainChart(labels, prices, ma7, predLabels, predPrices);
+            
+            document.querySelectorAll('.btn-filter').forEach(btn => {
+                btn.classList.toggle('active', btn.innerText === (days == 30 ? '30D' : days == 90 ? '90D' : '1Y'));
+            });
+        }
+
+        function renderMainChart(labels, prices, ma7, predLabels, predPrices) {
+            const ctx = document.getElementById('mainChart').getContext('2d');
+            if(mainChart) mainChart.destroy();
+
+            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, 'rgba(123, 255, 106, 0.15)');
+            gradient.addColorStop(1, 'rgba(123, 255, 106, 0)');
+
+            mainChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Price',
+                            data: prices,
+                            borderColor: '#7bff6a',
+                            backgroundColor: gradient,
+                            fill: true,
+                            tension: 0.15,
+                            pointRadius: 0,
+                            borderWidth: 2
+                        },
+                        {
+                            label: '7D MA',
+                            data: ma7,
+                            borderColor: '#f5a623',
+                            borderDash: [4, 4],
+                            borderWidth: 1.5,
+                            pointRadius: 0,
+                            fill: false
+                        },
+                        {
+                            label: 'Prediction',
+                            data: Array(labels.length-1).fill(null).concat(predPrices),
+                            borderColor: '#5ab4ff',
+                            borderDash: [6, 6],
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            fill: false,
+                            spanGaps: true
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#1e201f',
+                            borderColor: '#2c2e2d',
+                            borderWidth: 1,
+                            titleFont: { family: 'Sora', size: 12 },
+                            bodyFont: { family: 'Sora', size: 12 }
+                        }
+                    },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { color: '#cbd5e1', font: { family: 'Sora', size: 9 } } },
+                        y: { 
+                            grid: { color: '#212321' }, 
+                            ticks: { 
+                                color: '#cbd5e1', 
+                                font: { family: 'Sora', size: 9 },
+                                callback: val => '₹' + val
+                            } 
+                        }
+                    }
+                }
+            });
+        }
+
+        async function loadPredictions(symbol) {
+            const res = await fetch(`/predict/${symbol}`);
+            const data = await res.json();
+            const grid = document.getElementById('predGrid');
+            grid.innerHTML = '';
+            
+            const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+            data.forEach((p, i) => {
+                const cell = document.createElement('div');
+                cell.className = 'pred-cell';
+                cell.innerHTML = `
+                    <div class="pred-day">${days[i]}</div>
+                    <div class="pred-price tabular">${Math.round(p.prediction)}</div>
+                `;
+                grid.appendChild(cell);
+            });
+        }
+
+        async function compareStocks() {
+            const s1 = document.getElementById('compare1').value;
+            const s2 = document.getElementById('compare2').value;
+            const res = await fetch(`/compare?symbol1=${s1}&symbol2=${s2}`);
+            const data = await res.json();
+            
+            document.getElementById('compareResult').style.display = 'block';
+            const ctx = document.getElementById('compareChart').getContext('2d');
+            if(compareChart) compareChart.destroy();
+
+            compareChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.map(d => d.date),
+                    datasets: [
+                        { label: s1, data: data.map(d => d.symbol1), borderColor: '#7bff6a', pointRadius: 0, yAxisID: 'y' },
+                        { label: s2, data: data.map(d => d.symbol2), borderColor: '#5ab4ff', pointRadius: 0, yAxisID: 'y1' }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: true, labels: { color: '#7a7d7b', font: { size: 10 } } } },
+                    scales: {
+                        x: { display: false },
+                        y: { type: 'linear', display: true, position: 'left', grid: { display: false }, ticks: { color: '#7bff6a', font: { size: 8 } } },
+                        y1: { type: 'linear', display: true, position: 'right', grid: { display: false }, ticks: { color: '#5ab4ff', font: { size: 8 } } }
+                    }
+                }
+            });
+        }
+
+        async function loadTopPerformers() {
+            const res = await fetch('/top_performers');
+            const data = await res.json();
+            const gList = document.getElementById('gainersList');
+            const lList = document.getElementById('losersList');
+            
+            gList.innerHTML = '';
+            lList.innerHTML = '';
+
+            data.gainers.forEach(g => {
+                gList.innerHTML += `
+                    <div class="performer-card">
+                        <div class="perf-info">
+                            <span class="perf-sym" style="color:var(--green)">${g.symbol}</span>
+                        </div>
+                        <span class="perf-val up tabular">+${g.return}%</span>
+                    </div>
+                `;
+            });
+
+            data.losers.forEach(l => {
+                lList.innerHTML += `
+                    <div class="performer-card">
+                        <div class="perf-info">
+                            <span class="perf-sym" style="color:var(--red)">${l.symbol}</span>
+                        </div>
+                        <span class="perf-val down tabular">${l.return}%</span>
+                    </div>
+                `;
+            });
+        }
+    </script>
+</body>
+</html>

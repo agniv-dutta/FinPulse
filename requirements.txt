@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+yfinance
+pandas
+numpy
+sqlalchemy
+scikit-learn
+requests
+jinja2
