@@ -333,6 +333,71 @@
         }
         .v-labels { display: flex; justify-content: space-between; margin-top: 8px; font-size: 9px; color: var(--t3); }
 
+        /* View Management */
+        .view-container { display: none; width: 100%; animation: fadeIn 0.3s; }
+        .view-container.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* Toast */
+        .toast {
+            position: fixed; bottom: 24px; right: 24px;
+            background: var(--bg-card); border: 1px solid var(--green);
+            color: var(--t1); padding: 12px 24px; border-radius: 8px;
+            font-size: 13px; font-weight: 500;
+            opacity: 0; transform: translateY(20px);
+            transition: all 0.3s ease; z-index: 10000;
+        }
+        .toast.show { opacity: 1; transform: translateY(0); }
+
+        /* Pulse Animations */
+        @keyframes pulseGreen {
+            0% { color: var(--t1); text-shadow: none; }
+            50% { color: var(--green); text-shadow: 0 0 10px rgba(123, 255, 106, 0.5); }
+            100% { color: var(--t1); text-shadow: none; }
+        }
+        .pulse-up { animation: pulseGreen 1s ease-out; }
+
+        @keyframes pulseRed {
+            0% { color: var(--t1); text-shadow: none; }
+            50% { color: var(--red); text-shadow: 0 0 10px rgba(255, 92, 92, 0.5); }
+            100% { color: var(--t1); text-shadow: none; }
+        }
+        .pulse-down { animation: pulseRed 1s ease-out; }
+
+        /* Autocomplete Dropdown */
+        .search-wrapper { position: relative; width: 300px; }
+        .search-box { width: 100%; background: var(--bg-card); border: 1px solid var(--border-d); border-radius: 12px; }
+        .autocomplete-dropdown {
+            position: absolute; top: 100%; left: 0; width: 100%;
+            background: var(--bg-card); border: 1px solid var(--border-d);
+            border-radius: 8px; margin-top: 4px; max-height: 200px;
+            overflow-y: auto; z-index: 10; display: none;
+        }
+        .autocomplete-item {
+            padding: 10px 16px; font-size: 12px; cursor: pointer;
+            border-bottom: 1px solid var(--border-d); color: var(--t1);
+        }
+        .autocomplete-item:last-child { border-bottom: none; }
+        .autocomplete-item:hover { background: var(--bg-card2); color: var(--green); }
+
+        /* Export Button */
+        .btn-export {
+            background: transparent; border: 1px solid var(--border-d);
+            color: var(--t2); font-size: 11px; padding: 6px 14px;
+            border-radius: 8px; cursor: pointer; transition: all 0.2s; margin-left: 8px;
+        }
+        .btn-export:hover { border-color: var(--t1); color: var(--t1); }
+
+        /* Markets Table */
+        .markets-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        .markets-table th, .markets-table td {
+            padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border-d); font-size: 13px;
+        }
+        .markets-table th { color: var(--t2); font-weight: 600; cursor: pointer; user-select: none; }
+        .markets-table th:hover { color: var(--t1); }
+        .sort-icon { font-size: 10px; margin-left: 4px; color: var(--green); }
+        .markets-table tbody tr:hover { background: var(--bg-card); cursor: pointer; }
+
         /* Utility */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
@@ -345,13 +410,13 @@
         <div class="logo-sq">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
         </div>
-        <div class="nav-icon active" title="Dashboard">
+        <div class="nav-icon active" id="navDashboard" title="Dashboard">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
         </div>
-        <div class="nav-icon" title="Markets">
+        <div class="nav-icon" id="navMarkets" title="Markets">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg>
         </div>
-        <div class="nav-icon" title="Analytics">
+        <div class="nav-icon" id="navAnalytics" title="Analytics">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
         </div>
         <div class="nav-icon bottom" title="Settings">
@@ -366,9 +431,12 @@
                 <h1 id="greetingMsg">Good Morning, Finpulse 👋</h1>
                 <p id="currentDate">Monday, 30 March 2026</p>
             </div>
-            <div class="search-box">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                <input type="text" placeholder="Search markets...">
+            <div class="search-wrapper">
+                <div class="search-box" style="width: 100%; border: none;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    <input type="text" id="searchInput" placeholder="Search markets..." autocomplete="off">
+                </div>
+                <div class="autocomplete-dropdown" id="searchDropdown"></div>
             </div>
         </div>
 
@@ -376,6 +444,7 @@
             <!-- Ticker Chips loaded via JS -->
         </div>
 
+        <div id="view-dashboard" class="view-container active">
         <div class="stats-grid">
             <div class="stat-card">
                 <div class="stat-label">52W High</div>
@@ -402,6 +471,7 @@
                     <button class="btn-filter active" onclick="filterData(30)">30D</button>
                     <button class="btn-filter" onclick="filterData(90)">90D</button>
                     <button class="btn-filter" onclick="filterData(365)">1Y</button>
+                    <button class="btn-export" onclick="exportCSV()">Export CSV</button>
                 </div>
             </div>
             <canvas id="mainChart"></canvas>
@@ -418,7 +488,31 @@
                 <canvas id="compareChart"></canvas>
             </div>
         </div>
+        </div> <!-- End view-dashboard -->
+
+        <div id="view-markets" class="view-container">
+            <div class="section-h" style="font-size:16px; margin-bottom: 20px;">Markets Overview</div>
+            <table class="markets-table">
+                <thead>
+                    <tr>
+                        <th onclick="sortMarketsTable('symbol')">Symbol<span class="sort-icon" id="sort-ind-symbol"></span></th>
+                        <th onclick="sortMarketsTable('name')">Company<span class="sort-icon" id="sort-ind-name"></span></th>
+                        <th onclick="sortMarketsTable('price')">Price<span class="sort-icon" id="sort-ind-price"></span></th>
+                        <th onclick="sortMarketsTable('delta')">Change<span class="sort-icon" id="sort-ind-delta"></span></th>
+                    </tr>
+                </thead>
+                <tbody id="marketsTableBody"></tbody>
+            </table>
+        </div>
+
+        <div id="view-analytics" class="view-container">
+            <div class="section-h" style="font-size:16px; margin-bottom: 20px;">Analytics Dashboard</div>
+            <p style="color:var(--t2); font-size:13px;">Advanced analytics tools and screeners will appear here.</p>
+        </div>
     </main>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
 
     <!-- Right Panel -->
     <aside class="right-panel">
@@ -469,6 +563,13 @@
         let fullStockData = [];
         let mainChart = null;
         let compareChart = null;
+        
+        let allCompanies = [];
+        let autoRefreshInterval = null;
+        let marketsData = [];
+        let currentSortCol = 'symbol';
+        let sortAsc = true;
+        let activeFilterDays = 30;
 
         document.addEventListener('DOMContentLoaded', () => {
             setGreeting();
@@ -488,6 +589,7 @@
         async function loadCompanies() {
             const res = await fetch('/companies');
             const companies = await res.json();
+            allCompanies = companies;
             const strip = document.getElementById('tickerStrip');
             const sel1 = document.getElementById('compare1');
             const sel2 = document.getElementById('compare2');
@@ -531,10 +633,14 @@
                 const firstDelta = ((firstLatest.close - firstPrev.close) / firstPrev.close * 100).toFixed(2);
                 selectCompany(companies[0], firstLatest, firstDelta);
             }
+            
+            loadMarketsData();
+            startAutoRefresh();
         }
 
         async function selectCompany(company, latest, delta) {
             currentSymbol = company.symbol;
+            showToast(`Loaded ${company.name}`);
             
             // UI Updates
             document.getElementById('activeName').innerText = company.name;
@@ -575,6 +681,7 @@
         }
 
         async function filterData(days) {
+            activeFilterDays = days;
             const filtered = fullStockData.slice(-days);
             const labels = filtered.map(d => d.date);
             const prices = filtered.map(d => d.close);
@@ -745,6 +852,201 @@
                     </div>
                 `;
             });
+        }
+
+        /* NEW LOGIC for EXPORT, TOAST, VIEWS, SHORTCUTS, AUTO-REFRESH & MARKETS TABLE */
+        
+        function exportCSV() {
+            if(!fullStockData || !currentSymbol) return;
+            const filtered = fullStockData.slice(-activeFilterDays);
+            let csv = "Date,Open,High,Low,Close,Volume\n";
+            filtered.forEach(d => {
+                csv += `${d.date},${d.open},${d.high},${d.low},${d.close},${d.volume}\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.setAttribute('hidden', '');
+            a.setAttribute('href', url);
+            a.setAttribute('download', `${currentSymbol}_${activeFilterDays}D.csv`);
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            if(!t) return;
+            t.innerText = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 2000);
+        }
+
+        function switchView(viewName) {
+            document.querySelectorAll('.view-container').forEach(v => v.classList.remove('active'));
+            document.querySelectorAll('.nav-icon').forEach(n => n.classList.remove('active'));
+            
+            const viewEl = document.getElementById(`view-${viewName}`);
+            if(viewEl) viewEl.classList.add('active');
+            
+            if(viewName === 'dashboard') document.getElementById('navDashboard').classList.add('active');
+            if(viewName === 'markets') {
+                document.getElementById('navMarkets').classList.add('active');
+                renderMarketsTable();
+            }
+            if(viewName === 'analytics') document.getElementById('navAnalytics').classList.add('active');
+        }
+
+        if(document.getElementById('navDashboard')) document.getElementById('navDashboard').onclick = () => switchView('dashboard');
+        if(document.getElementById('navMarkets')) document.getElementById('navMarkets').onclick = () => switchView('markets');
+        if(document.getElementById('navAnalytics')) document.getElementById('navAnalytics').onclick = () => switchView('analytics');
+
+        document.addEventListener('keydown', (e) => {
+            const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+            if(activeTag === 'input' || activeTag === 'select' || activeTag === 'textarea') return;
+            
+            const key = e.key.toLowerCase();
+            if(['1','2','3','4','5'].includes(key)) {
+                const idx = parseInt(key) - 1;
+                if(allCompanies[idx]) {
+                    const company = allCompanies[idx];
+                    fetch(`/data/${company.symbol}`).then(res => res.json()).then(data => {
+                        const latest = data[data.length-1];
+                        const prev = data[data.length-2] || latest;
+                        const delta = ((latest.close - prev.close)/prev.close * 100).toFixed(2);
+                        selectCompany(company, latest, delta);
+                    });
+                }
+            } else if(key === 'm') switchView('markets');
+            else if(key === 'a') switchView('analytics');
+            else if(key === 'd') switchView('dashboard');
+        });
+
+        const searchInputEl = document.getElementById('searchInput');
+        const searchDropdownEl = document.getElementById('searchDropdown');
+        
+        if (searchInputEl) {
+            searchInputEl.addEventListener('input', (e) => {
+                const val = e.target.value.toLowerCase();
+                searchDropdownEl.innerHTML = '';
+                if(!val) { searchDropdownEl.style.display = 'none'; return; }
+                
+                const matches = allCompanies.filter(c => c.name.toLowerCase().includes(val) || c.symbol.toLowerCase().includes(val));
+                if(matches.length > 0) {
+                    matches.forEach(m => {
+                        const div = document.createElement('div');
+                        div.className = 'autocomplete-item';
+                        div.innerHTML = `<strong>${m.symbol}</strong> - ${m.name}`;
+                        div.onclick = () => {
+                            searchInputEl.value = '';
+                            searchDropdownEl.style.display = 'none';
+                            fetch(`/data/${m.symbol}`).then(res => res.json()).then(data => {
+                                const latest = data[data.length-1];
+                                const prev = data[data.length-2] || latest;
+                                const delta = ((latest.close - prev.close)/prev.close * 100).toFixed(2);
+                                selectCompany(m, latest, delta);
+                            });
+                        };
+                        searchDropdownEl.appendChild(div);
+                    });
+                    searchDropdownEl.style.display = 'block';
+                } else {
+                    searchDropdownEl.style.display = 'none';
+                }
+            });
+            
+            document.addEventListener('click', (e) => {
+                if(!e.target.closest('.search-wrapper')) searchDropdownEl.style.display = 'none';
+            });
+        }
+
+        function startAutoRefresh() {
+            if(autoRefreshInterval) clearInterval(autoRefreshInterval);
+            autoRefreshInterval = setInterval(async () => {
+                if(!currentSymbol) return;
+                try {
+                    const res = await fetch(`/data/${currentSymbol}`);
+                    const data = await res.json();
+                    const latest = data[data.length-1];
+                    const prev = data[data.length-2] || latest;
+                    const delta = ((latest.close - prev.close)/prev.close * 100).toFixed(2);
+                    
+                    const oldPriceEl = document.getElementById('activePrice');
+                    const oldPrice = parseFloat(oldPriceEl.innerText.replace(/[^0-9.-]+/g, ""));
+                    
+                    oldPriceEl.innerText = `₹${latest.close.toLocaleString()}`;
+                    const deltaEl = document.getElementById('activeDelta');
+                    deltaEl.innerText = `${delta >= 0 ? '+' : ''}${Math.abs(delta).toFixed(2)}%`;
+                    deltaEl.className = `delta-badge ${delta >= 0 ? 'up' : 'down'}`;
+                    
+                    if(latest.close > oldPrice) {
+                        oldPriceEl.classList.remove('pulse-up', 'pulse-down');
+                        void oldPriceEl.offsetWidth;
+                        oldPriceEl.classList.add('pulse-up');
+                    } else if(latest.close < oldPrice) {
+                        oldPriceEl.classList.remove('pulse-up', 'pulse-down');
+                        void oldPriceEl.offsetWidth;
+                        oldPriceEl.classList.add('pulse-down');
+                    }
+                    
+                    loadMarketsData();
+                } catch(err) { console.error("Auto-refresh failed", err); }
+            }, 60000);
+        }
+
+        async function loadMarketsData() {
+            marketsData = [];
+            for (const company of allCompanies) {
+                try {
+                    const dataRes = await fetch(`/data/${company.symbol}`);
+                    const data = await dataRes.json();
+                    const latest = data[data.length - 1];
+                    const prev = data[data.length - 2] || latest;
+                    const delta = parseFloat(((latest.close - prev.close) / prev.close * 100).toFixed(2));
+                    marketsData.push({ symbol: company.symbol, name: company.name, price: latest.close, delta: delta, companyObj: company, latestData: latest });
+                } catch(err) { console.error(err); }
+            }
+            if(document.getElementById('view-markets') && document.getElementById('view-markets').classList.contains('active')) {
+                renderMarketsTable();
+            }
+        }
+
+        function sortMarketsTable(col) {
+            if(currentSortCol === col) sortAsc = !sortAsc;
+            else { currentSortCol = col; sortAsc = true; }
+            renderMarketsTable();
+        }
+
+        function renderMarketsTable() {
+            const sorted = [...marketsData].sort((a, b) => {
+                let valA = a[currentSortCol], valB = b[currentSortCol];
+                if(typeof valA === 'string') { valA = valA.toLowerCase(); valB = valB.toLowerCase(); }
+                if(valA < valB) return sortAsc ? -1 : 1;
+                if(valA > valB) return sortAsc ? 1 : -1;
+                return 0;
+            });
+            
+            const tbody = document.getElementById('marketsTableBody');
+            if(!tbody) return;
+            tbody.innerHTML = '';
+            sorted.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.onclick = () => {
+                    selectCompany(row.companyObj, row.latestData, row.delta.toFixed(2));
+                    switchView('dashboard');
+                };
+                tr.innerHTML = `
+                    <td style="font-weight:600; color:var(--t1);">${row.symbol}</td>
+                    <td>${row.name}</td>
+                    <td class="tabular">₹${row.price.toLocaleString()}</td>
+                    <td class="tabular" style="color:${row.delta >= 0 ? 'var(--green)' : 'var(--red)'}">${row.delta >= 0 ? '+' : ''}${Math.abs(row.delta).toFixed(2)}%</td>
+                `;
+                tbody.appendChild(tr);
+            });
+            
+            document.querySelectorAll('.sort-icon').forEach(el => el.innerText = '');
+            const activeInd = document.getElementById(`sort-ind-${currentSortCol}`);
+            if(activeInd) activeInd.innerText = sortAsc ? '↑' : '↓';
         }
     </script>
 </body>
