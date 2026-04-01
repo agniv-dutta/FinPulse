@@ -399,6 +399,54 @@
         .markets-table tbody tr:hover { background: var(--bg-card); cursor: pointer; }
 
         /* Utility */
+                /* Analytics Grid Layout */
+                .ana-grid {
+                    padding: 16px 26px 26px;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 14px;
+                    overflow-y: auto;
+                }
+        
+                .ana-card {
+                    background: var(--bg-card);
+                    border-radius: 15px;
+                    padding: 24px;
+                    border: 1px solid var(--border-d);
+                }
+        
+                .ana-title { font-size: 14px; font-weight: 600; color: var(--t1); margin-bottom: 4px; }
+                .ana-subtitle { font-size: 11px; color: var(--t2); margin-bottom: 16px; }
+        
+                /* Daily Returns Bar */
+                .returns-row {
+                    display: flex; align-items: center; margin-bottom: 12px; gap: 12px;
+                }
+                .returns-symbol { width: 72px; font-size: 12px; font-weight: 600; flex-shrink: 0; }
+                .returns-bar-track {
+                    flex: 1; height: 28px; background: var(--bg-card2); border-radius: 6px;
+                    position: relative; display: flex; align-items: center; overflow: hidden;
+                }
+                .returns-bar {
+                    height: 100%; border-radius: 6px; min-width: 4px; transition: width 0.3s ease;
+                }
+                .returns-value { width: 60px; text-align: right; font-size: 12px; font-weight: 600; }
+        
+                /* Volatility Chart & Correlation Grid */
+                .ana-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+                .vol-chart { height: 300px; position: relative; }
+        
+                /* Correlation Heatmap */
+                .corr-grid { display: inline-grid; gap: 0; }
+                .corr-header, .corr-row { display: grid; grid-template-columns: 80px repeat(5, 1fr); gap: 0; }
+                .corr-label, .corr-cell {
+                    padding: 8px; text-align: center; font-size: 10px; font-weight: 500;
+                    min-height: 36px; display: flex; align-items: center; justify-content: center;
+                }
+                .corr-label { background: var(--bg-card2); color: var(--t2); border: 1px solid var(--border-d); }
+                .corr-header-cell { background: var(--bg-card2); color: var(--t2); border: 1px solid var(--border-d); }
+                .corr-cell { border: 1px solid var(--border-d); }
+        
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: var(--border-d); border-radius: 10px; }
@@ -505,9 +553,8 @@
             </table>
         </div>
 
-        <div id="view-analytics" class="view-container">
-            <div class="section-h" style="font-size:16px; margin-bottom: 20px;">Analytics Dashboard</div>
-            <p style="color:var(--t2); font-size:13px;">Advanced analytics tools and screeners will appear here.</p>
+        <div id="view-analytics" class="view-container ana-grid">
+            <!-- Analytics content rendered by buildAnalytics() -->
         </div>
     </main>
 
@@ -909,9 +956,213 @@
                 document.getElementById('navMarkets').classList.add('active');
                 renderMarketsTable();
             }
-            if(viewName === 'analytics') document.getElementById('navAnalytics').classList.add('active');
+            if(viewName === 'analytics') {
+                document.getElementById('navAnalytics').classList.add('active');
+                buildAnalytics();
+            }
         }
 
+        if(document.getElementById('navDashboard')) document.getElementById('navDashboard').onclick = () => switchView('dashboard');
+        /* Helper: Mock seeded price generator */
+        function mockP(base, n, sym) {
+            const seed = sym.charCodeAt(0) * 73 + sym.charCodeAt(sym.length-1) * 17;
+            let val = base;
+            for(let i = 0; i < n; i++) {
+                const rnd = Math.sin(seed + i * 0.5) * 10000 % 1;
+                val *= (1 + (rnd - 0.5) * 0.08);
+            }
+            return val;
+        }
+        
+        /* Local storage for analytics chart instance */
+        let volChart = null;
+        
+        async function buildAnalytics() {
+            const container = document.getElementById('view-analytics');
+            if(!container) return;
+            
+            // Destroy existing chart if present
+            if(volChart) { volChart.destroy(); volChart = null; }
+            
+            // Generate mock data immediately (don't await)
+            const mockData = {
+                returns: {},
+                volatility: {},
+                prices: {}
+            };
+            
+            const basePrice = { 'RELIANCE.NS': 2800, 'TCS.NS': 3900, 'INFY.NS': 2000, 'HDFCBANK.NS': 1700, 'WIPRO.NS': 700 };
+            
+            for (const sym of ['RELIANCE.NS', 'TCS.NS', 'INFY.NS', 'HDFCBANK.NS', 'WIPRO.NS']) {
+                mockData.returns[sym] = (Math.random() - 0.5) * 4;
+                mockData.volatility[sym] = 0.008 + Math.random() * 0.025;
+                mockData.prices[sym] = [];
+                for (let i = 0; i < 30; i++) {
+                    mockData.prices[sym].push(mockP(basePrice[sym], i, sym));
+                }
+            }
+            
+            // Render immediately with mock data
+            renderAnalytics(mockData);
+            
+            // Fetch real data and update (non-blocking)
+            try {
+                const syms = ['RELIANCE.NS', 'TCS.NS', 'INFY.NS', 'HDFCBANK.NS', 'WIPRO.NS'];
+                for (const sym of syms) {
+                    const res = await fetch(`/data/${sym}?days=30`);
+                    const data = await res.json();
+                    if (data && data.length > 0) {
+                        const latest = data[data.length - 1];
+                        const prev = data[data.length - 2] || latest;
+                        mockData.returns[sym] = ((latest.close - latest.open) / latest.open) * 100;
+                        mockData.volatility[sym] = latest.volatility_score || mockData.volatility[sym];
+                        mockData.prices[sym] = data.map(d => d.close);
+                    }
+                }
+                renderAnalytics(mockData);
+            } catch(err) { console.error("Analytics data fetch error:", err); }
+        }
+        
+        function renderAnalytics(data) {
+            const container = document.getElementById('view-analytics');
+            if(!container) return;
+            
+            // Destroy existing chart before re-rendering
+            if(volChart) { volChart.destroy(); volChart = null; }
+            
+            container.innerHTML = '';
+            
+            /* SECTION A: Daily Returns Bar */
+            const returnsCard = document.createElement('div');
+            returnsCard.className = 'ana-card';
+            returnsCard.innerHTML = '<div class="ana-title">Daily Returns by Stock</div><div class="ana-subtitle">Today\'s return = (Close − Open) / Open</div>';
+            
+            for (const sym of ['RELIANCE.NS', 'TCS.NS', 'INFY.NS', 'HDFCBANK.NS', 'WIPRO.NS']) {
+                const ret = data.returns[sym] || 0;
+                const isPos = ret >= 0;
+                const barW = Math.max(4, Math.abs(ret) * 8);
+                const row = document.createElement('div');
+                row.className = 'returns-row';
+                row.innerHTML = `
+                    <div class="returns-symbol">${sym}</div>
+                    <div class="returns-bar-track">
+                        <div class="returns-bar" style="background: ${isPos ? 'var(--green)' : 'var(--red)'}; width: ${barW}px;"></div>
+                    </div>
+                    <div class="returns-value" style="color: ${isPos ? 'var(--green)' : 'var(--red)'};">${ret.toFixed(2)}%</div>
+                `;
+                returnsCard.appendChild(row);
+            }
+            container.appendChild(returnsCard);
+            
+            /* SECTION B & C: 2-Column Layout */
+            const twoCol = document.createElement('div');
+            twoCol.className = 'ana-2col';
+            
+            /* SECTION B: Volatility Chart */
+            const volCard = document.createElement('div');
+            volCard.className = 'ana-card';
+            volCard.innerHTML = '<div class="ana-title">Volatility Comparison</div><div class="ana-subtitle">30-day rolling std dev of daily returns</div><div class="vol-chart"><canvas id="volChart"></canvas></div>';
+            twoCol.appendChild(volCard);
+            
+            /* SECTION C: Correlation Heatmap */
+            const corrCard = document.createElement('div');
+            corrCard.className = 'ana-card';
+            corrCard.innerHTML = '<div class="ana-title">Price Correlation Matrix</div><div class="ana-subtitle">30-day closing price correlation (−1 to +1)</div>';
+            
+            const symbols = ['RELIANCE.NS', 'TCS.NS', 'INFY.NS', 'HDFCBANK.NS', 'WIPRO.NS'];
+            const corrGrid = document.createElement('div');
+            corrGrid.className = 'corr-grid';
+            
+            // Header row
+            const header = document.createElement('div');
+            header.className = 'corr-header';
+            header.innerHTML = '<div class="corr-label"></div>';
+            symbols.forEach(s => {
+                header.innerHTML += `<div class="corr-header-cell">${s.split('.')[0]}</div>`;
+            });
+            corrGrid.appendChild(header);
+            
+            // Correlation matrix rows
+            for (let i = 0; i < symbols.length; i++) {
+                const row = document.createElement('div');
+                row.className = 'corr-row';
+                row.innerHTML = `<div class="corr-label">${symbols[i].split('.')[0]}</div>`;
+                
+                for (let j = 0; j < symbols.length; j++) {
+                    const prices1 = data.prices[symbols[i]] || [];
+                    const prices2 = data.prices[symbols[j]] || [];
+                    let corr = i === j ? 1 : 0;
+                    
+                    if (prices1.length > 1 && prices2.length && prices1.length === prices2.length) {
+                        const mean1 = prices1.reduce((a, b) => a + b, 0) / prices1.length;
+                        const mean2 = prices2.reduce((a, b) => a + b, 0) / prices2.length;
+                        const cov = prices1.reduce((sum, p1, idx) => sum + (p1 - mean1) * (prices2[idx] - mean2), 0) / prices1.length;
+                        const std1 = Math.sqrt(prices1.reduce((sum, p) => sum + Math.pow(p - mean1, 2), 0) / prices1.length);
+                        const std2 = Math.sqrt(prices2.reduce((sum, p) => sum + Math.pow(p - mean2, 2), 0) / prices2.length);
+                        corr = std1 && std2 ? cov / (std1 * std2) : 0;
+                    }
+                    
+                    const corrAbs = Math.abs(corr);
+                    let bgColor, txtColor;
+                    if (corr > 0) {
+                        bgColor = `rgba(123,255,106,${corrAbs * 0.6})`;
+                        txtColor = corrAbs > 0.5 ? '#111312' : 'var(--t1)';
+                    } else {
+                        bgColor = `rgba(255,92,92,${corrAbs * 0.6})`;
+                        txtColor = corrAbs > 0.5 ? '#111312' : 'var(--t1)';
+                    }
+                    
+                    const cell = document.createElement('div');
+                    cell.className = 'corr-cell';
+                    cell.style.background = bgColor;
+                    cell.style.color = txtColor;
+                    cell.innerText = corr.toFixed(2);
+                    row.appendChild(cell);
+                }
+                corrGrid.appendChild(row);
+            }
+            corrCard.appendChild(corrGrid);
+            twoCol.appendChild(corrCard);
+            
+            container.appendChild(twoCol);
+            
+            /* Create volatility chart */
+            setTimeout(() => {
+                const ctx = document.getElementById('volChart');
+                if (ctx) {
+                    const volData = symbols.map(s => data.volatility[s] || 0.015);
+                    const barColors = volData.map(v => {
+                        if (v < 0.012) return 'rgba(123,255,106,0.6)';
+                        if (v < 0.022) return 'rgba(245,166,35,0.6)';
+                        return 'rgba(255,92,92,0.6)';
+                    });
+                    
+                    volChart = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: symbols.map(s => s.split('.')[0]),
+                            datasets: [{
+                                label: 'Volatility',
+                                data: volData,
+                                backgroundColor: barColors,
+                                borderWidth: 0
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            indexAxis: 'y',
+                            plugins: { legend: { display: false } },
+                            scales: {
+                                x: { grid: { color: '#212321' }, ticks: { color: '#cbd5e1', font: { family: 'Sora', size: 10 } } },
+                                y: { ticks: { color: '#cbd5e1', font: { family: 'Sora', size: 10 } } }
+                            }
+                        }
+                    });
+                }
+            }, 100);
+        }
+        
         if(document.getElementById('navDashboard')) document.getElementById('navDashboard').onclick = () => switchView('dashboard');
         if(document.getElementById('navMarkets')) document.getElementById('navMarkets').onclick = () => switchView('markets');
         if(document.getElementById('navAnalytics')) document.getElementById('navAnalytics').onclick = () => switchView('analytics');
