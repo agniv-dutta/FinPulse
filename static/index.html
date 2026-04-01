@@ -672,11 +672,12 @@
             document.getElementById('high52w').innerText = `₹${summary.high_52w.toLocaleString()}`;
             document.getElementById('low52w').innerText = `₹${summary.low_52w.toLocaleString()}`;
             document.getElementById('avgClose').innerText = `₹${summary.avg_close.toLocaleString()}`;
-            document.getElementById('volValue').innerText = latest.volatility.toFixed(4);
+            const volValue = latest.volatility_score || 0;
+            document.getElementById('volValue').innerText = volValue.toFixed(4);
             
             // Volatility Gauge
-            document.getElementById('vIndexVal').innerText = latest.volatility.toFixed(4);
-            const vPercent = Math.min(100, Math.max(0, (latest.volatility / 0.05) * 100)); // Scaled to 0.05 as 'High'
+            document.getElementById('vIndexVal').innerText = volValue.toFixed(4);
+            const vPercent = Math.min(100, Math.max(0, (volValue / 0.05) * 100)); // Scaled to 0.05 as 'High'
             document.getElementById('vBar').style.width = `${vPercent}%`;
         }
 
@@ -685,7 +686,7 @@
             const filtered = fullStockData.slice(-days);
             const labels = filtered.map(d => d.date);
             const prices = filtered.map(d => d.close);
-            const ma7 = filtered.map(d => d.ma_7);
+            const ma7 = filtered.map(d => d['7_day_ma']);
 
             const predRes = await fetch(`/predict/${currentSymbol}`);
             const predictions = await predRes.json();
@@ -724,7 +725,7 @@
                             borderWidth: 2
                         },
                         {
-                            label: '7D MA',
+                            label: '7-Day MA',
                             data: ma7,
                             borderColor: '#f5a623',
                             borderDash: [4, 4],
@@ -794,7 +795,21 @@
             const s1 = document.getElementById('compare1').value;
             const s2 = document.getElementById('compare2').value;
             const res = await fetch(`/compare?symbol1=${s1}&symbol2=${s2}`);
+            if(!res.ok) {
+                showToast('Error comparing stocks');
+                return;
+            }
             const data = await res.json();
+            
+            // Extract dates and align data
+            const dates = [...data[s1].map(d => d.date), ...data[s2].map(d => d.date)];
+            const uniqueDates = [...new Set(dates)].sort();
+            
+            // Map close prices by date for each symbol
+            const s1Map = Object.fromEntries(data[s1].map(d => [d.date, d.close]));
+            const s2Map = Object.fromEntries(data[s2].map(d => [d.date, d.close]));
+            const s1Data = uniqueDates.map(d => s1Map[d] || null);
+            const s2Data = uniqueDates.map(d => s2Map[d] || null);
             
             document.getElementById('compareResult').style.display = 'block';
             const ctx = document.getElementById('compareChart').getContext('2d');
@@ -803,10 +818,10 @@
             compareChart = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: data.map(d => d.date),
+                    labels: uniqueDates,
                     datasets: [
-                        { label: s1, data: data.map(d => d.symbol1), borderColor: '#7bff6a', pointRadius: 0, yAxisID: 'y' },
-                        { label: s2, data: data.map(d => d.symbol2), borderColor: '#5ab4ff', pointRadius: 0, yAxisID: 'y1' }
+                        { label: s1, data: s1Data, borderColor: '#7bff6a', pointRadius: 0, yAxisID: 'y', tension: 0.1 },
+                        { label: s2, data: s2Data, borderColor: '#5ab4ff', pointRadius: 0, yAxisID: 'y1', tension: 0.1 }
                     ]
                 },
                 options: {
